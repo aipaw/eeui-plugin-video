@@ -91,7 +91,7 @@ public class AppvideoViewComponent extends WXVContainer<VideoView> {
 
     @WXComponentProp(name = "img")
     public void setImg(String src) {
-        src = eeuiPage.rewriteUrl(getInstance().getContext(), src);
+        src = eeuiPage.rewriteUrl(getInstance(), src);
         if (getHostView() != null) {
             Glide.with((Activity) getContext()).load(src).into(getHostView().getCoverImageView());
         }
@@ -125,7 +125,7 @@ public class AppvideoViewComponent extends WXVContainer<VideoView> {
 
     @WXComponentProp(name = "src")
     public void setSrc(String src) {
-        this.url = eeuiPage.rewriteUrl(getInstance().getContext(), src);
+        this.url = eeuiPage.rewriteUrl(getInstance(), src);
         getHostView().setUp(this.url, this.title + "");
     }
 

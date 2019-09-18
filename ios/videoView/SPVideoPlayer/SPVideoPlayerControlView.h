@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 #import "SPVideoSlider.h"
 #import "PlayDelegate.h"
+#import "DeviceUtil.h"
 
 @interface SPVideoPlayerControlView : UIView
 
@@ -19,7 +20,7 @@
 - (void)sp_playerShowControlView;
 - (void)sp_playerResetControlView;
 - (void)repeatButtonnAction:(UIButton *)sender;
-- (void)setImg:(NSString*)url;
+- (void)setImg:(NSString*)url mInstance:(WXSDKInstance*)mInstance;
 - (void)hideControlView ;
 
 @end

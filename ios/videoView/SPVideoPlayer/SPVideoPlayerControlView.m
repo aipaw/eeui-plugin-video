@@ -17,7 +17,6 @@
 
 #import <Masonry/Masonry.h>
 #import "PlayDelegate.h"
-#import "DeviceUtil.h"
 
 
 #define kTopViewH 50
@@ -970,8 +969,8 @@ static const CGFloat SPPlayerControlBarAutoFadeOutTimeInterval = 0.35f;
     return _placeholderView;
 }
 
--(void)setImg:(NSString*)url {
-    NSURL *ul = [NSURL URLWithString:[DeviceUtil rewriteUrl:url]];
+-(void)setImg:(NSString*)url mInstance:(WXSDKInstance*)mInstance {
+    NSURL *ul = [NSURL URLWithString:[DeviceUtil rewriteUrl:url mInstance:mInstance]];
     _placeholderView.placeholderImageView.image = nil;
     [SDWebImageDownloader.sharedDownloader downloadImageWithURL:ul options:SDWebImageDownloaderLowPriority progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
         if (image) {

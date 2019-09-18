@@ -109,7 +109,7 @@ WX_EXPORT_METHOD(@selector(quitFullScreen))
     [self fireEvent:@"didload" params:nil];
     
     SPVideoPlayerControlView *c = (SPVideoPlayerControlView*)_video.controlView;
-    [c setImg:_img];
+    [c setImg:_img mInstance:weexInstance];
     
     UIImageView *placeholder = [UIImageView new];
     _placeholder = placeholder;
@@ -227,7 +227,7 @@ WX_EXPORT_METHOD(@selector(quitFullScreen))
 }
 
 -(NSURL*)getUrl:(NSString*)src {
-    return [NSURL URLWithString:[DeviceUtil rewriteUrl:src]];
+    return [NSURL URLWithString:[DeviceUtil rewriteUrl:src mInstance:weexInstance]];
 }
 
 @end
