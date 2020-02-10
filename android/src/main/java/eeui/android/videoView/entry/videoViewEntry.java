@@ -18,7 +18,7 @@ public class videoViewEntry {
     public void init(Context content) {
 
         try {
-            WXSDKEngine.registerComponent("video-view", AppvideoViewComponent.class);
+            WXSDKEngine.registerComponent("eeui-video", AppvideoViewComponent.class);
         } catch (WXException e) {
             e.printStackTrace();
         }
