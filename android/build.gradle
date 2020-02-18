@@ -7,7 +7,7 @@ android {
         minSdkVersion project.appMinSdkVersion
         targetSdkVersion project.targetSdkVersion
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         javaCompileOptions {
             annotationProcessorOptions {
                 includeCompileClasspath = true
@@ -36,9 +36,9 @@ dependencies {
     implementation 'tv.danmaku.ijk.media:ijkplayer-arm64:0.8.8'
     implementation 'tv.danmaku.ijk.media:ijkplayer-x86:0.8.8'
     //
-    compileOnly "com.android.support:support-v4:${project.supportLibVersion}"
-    compileOnly "com.android.support:recyclerview-v7:${project.supportLibVersion}"
-    compileOnly "com.android.support:design:${project.supportLibVersion}"
+    compileOnly "androidx.legacy:legacy-support-v4:${project.supportv4Version}"
+    compileOnly "androidx.recyclerview:recyclerview:${project.recyclerviewVersion}"
+    compileOnly "com.google.android.material:material:${project.materialVersion}"
     compileOnly "com.alibaba:fastjson:${project.fastjsonLibVersion}"
     compileOnly "org.apache.weex:sdk_legacy:${project.weex_sdkLibVersion}"
     //
