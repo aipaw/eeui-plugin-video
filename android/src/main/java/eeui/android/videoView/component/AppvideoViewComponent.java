@@ -1,220 +1,282 @@
 package eeui.android.videoView.component;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Message;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 
+import com.dueeeke.videocontroller.StandardVideoController;
+import com.dueeeke.videocontroller.component.CompleteView;
+import com.dueeeke.videocontroller.component.ErrorView;
+import com.dueeeke.videocontroller.component.GestureView;
+import com.dueeeke.videocontroller.component.PrepareView;
+import com.dueeeke.videocontroller.component.VodControlView;
+import com.dueeeke.videoplayer.player.VideoView;
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.annotation.JSMethod;
+import com.taobao.weex.bridge.JSCallback;
 import com.taobao.weex.ui.action.BasicComponentData;
 import com.taobao.weex.ui.component.WXComponentProp;
 import com.taobao.weex.ui.component.WXVContainer;
 
-import org.song.videoplayer.PlayListener;
-
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import app.eeui.framework.activity.PageActivity;
 import app.eeui.framework.extend.integration.glide.Glide;
+import app.eeui.framework.extend.module.eeuiConstants;
 import app.eeui.framework.extend.module.eeuiPage;
-import eeui.android.videoView.component.view.VideoView;
+import eeui.android.videoView.R;
+import eeui.android.videoView.component.extend.TitleView;
 
-import static org.song.videoplayer.IVideoPlayer.MODE_WINDOW_FULLSCREEN;
+public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
 
-public class AppvideoViewComponent extends WXVContainer<VideoView> {
+    private View mView;
+    private VideoView mVideoView;
+    private ImageView mImageView;
+    private TitleView mTitleView;
 
-    private Timer timer;
-    private String url = "";
-    private String title = "";
+    private StandardVideoController mController;
+    private PrepareView mPrepareView;
+
+    private String mUrl;
+    private static Map<String, Long> mDurations = new HashMap<>();
+
+    private boolean mAutoPlay;
+
+    private boolean isPause;    //页面是否暂停
+    private boolean isPlaying;  //是否播放中（用于页面恢复后是否播放）
 
     public AppvideoViewComponent(WXSDKInstance instance, WXVContainer parent, BasicComponentData basicComponentData) {
         super(instance, parent, basicComponentData);
     }
 
     @Override
-    protected VideoView initComponentHostView(@NonNull Context context) {
-        VideoView mVideoView = new VideoView(context);
-        mVideoView.instace = getInstance();
-        mVideoView.setPlayListener(new PlayListener() {
-            @Override
-            public void onStatus(int status) {
-
+    protected ViewGroup initComponentHostView(@NonNull Context context) {
+        mView = ((Activity) getContext()).getLayoutInflater().inflate(R.layout.my_video_view, null);
+        initPagerView();
+        //
+        if (getEvents().contains(eeuiConstants.Event.READY)) {
+            fireEvent(eeuiConstants.Event.READY, null);
+            if (mAutoPlay) {
+                mVideoView.start();
             }
+        }
+        //
+        return (ViewGroup) mView;
+    }
 
+    @Override
+    public void addSubView(View view, int index) {
+
+    }
+
+    @Override
+    public void onActivityPause() {
+        super.onActivityPause();
+        isPause = true;
+        isPlaying = mVideoView.getCurrentPlayState() == VideoView.STATE_PLAYING;
+        if (isPlaying) {
+            mVideoView.pause();
+        }
+    }
+
+    @Override
+    public void onActivityResume() {
+        super.onActivityResume();
+        isPause = false;
+        if (isPlaying) {
+            mVideoView.resume();
+        }
+    }
+
+    @Override
+    public void onActivityDestroy() {
+        super.onActivityDestroy();
+        mVideoView.release();
+    }
+
+    private void initPagerView() {
+        mVideoView = mView.findViewById(R.id.v_videoview);
+        mController = new StandardVideoController(getContext());            //播放控制器
+        mPrepareView = new PrepareView(getContext());                       //准备播放界面
+        mImageView = mPrepareView.findViewById(R.id.thumb);                 //封面图
+        mController.addControlComponent(mPrepareView);
+        mController.addControlComponent(new CompleteView(getContext()));    //自动完成播放界面
+        mController.addControlComponent(new ErrorView(getContext()));       //错误界面
+        mController.addControlComponent(new VodControlView(getContext()));  //点播控制条
+        mController.addControlComponent(new GestureView(getContext()));     //滑动控制视图
+        mController.setCanChangePosition(true);                             //根据是否为直播决定是否需要滑动调节进度
+        //
+        ImageView startPlay = mPrepareView.findViewById(R.id.start_play);
+        startPlay.setOnClickListener(v -> mVideoView.start());
+        //
+        mTitleView = new TitleView(getContext());                   //标题栏
+        mController.addControlComponent(mTitleView);
+        //
+        mVideoView.setEnableAudioFocus(false);
+        mVideoView.setVideoController(mController);
+        mVideoView.addOnStateChangeListener(new VideoView.OnStateChangeListener() {
             @Override
-            public void onMode(int mode) {
-                if (mode == 101) {
-                    AppvideoViewComponent.this.fireEvent("onFullScreen");
-                } else {
-                    AppvideoViewComponent.this.fireEvent("onNormalScreen");
+            public void onPlayerStateChanged(int playerState) {
+                switch (playerState) {
+                    case VideoView.PLAYER_NORMAL://小屏
+                        fireEvent("onNormalScreen");
+                        mTitleView.changeTop();
+                        break;
+                    case VideoView.PLAYER_FULL_SCREEN://全屏
+                        fireEvent("onFullScreen");
+                        mTitleView.changeTop();
+                        break;
                 }
             }
 
             @Override
-            public void onEvent(int status, Integer... extra) {
-                if (status == 11) {
-                    AppvideoViewComponent.this.fireEvent("onPrepared");
-                } else if (status == 12) {
-                    AppvideoViewComponent.this.fireEvent("onStart");
-                    statTimer();
-                } else if (status == 13) {
-                    AppvideoViewComponent.this.fireEvent("onPause");
-                } else if (status == 18) {
-                    AppvideoViewComponent.this.fireEvent("onCompletion");
-                    cancelTimer();
-                    firePlaying(true);
-                } else if (status == 20) {
-                    AppvideoViewComponent.this.fireEvent("onSeekComplete");
-                } else if (status == 16) {
-                    AppvideoViewComponent.this.fireEvent("onError");
+            public void onPlayStateChanged(int playState) {
+                switch (playState) {
+                    case VideoView.STATE_PREPARED:
+                    case VideoView.STATE_PLAYING:
+                    case VideoView.STATE_PAUSED:
+                    case VideoView.STATE_BUFFERING:
+                    case VideoView.STATE_BUFFERED:
+                        mDurations.put(mUrl, mVideoView.getDuration());
+                        break;
+                    case VideoView.STATE_ERROR:
+                    case VideoView.STATE_PLAYBACK_COMPLETED:
+                        mDurations.put(mUrl, (long) -1);
+                        break;
+                }
+                switch (playState) {
+                    case VideoView.STATE_IDLE:
+                        break;
+                    case VideoView.STATE_PREPARING:
+                        fireEvent("onPreparing");
+                        break;
+                    case VideoView.STATE_PREPARED:
+                        fireEvent("onPrepared");
+                        break;
+                    case VideoView.STATE_PLAYING:
+                        if (isPause) {
+                            isPlaying = true;
+                            mVideoView.pause();
+                        }
+                        fireEvent("onStart");
+                        break;
+                    case VideoView.STATE_PAUSED:
+                        fireEvent("onPause");
+                        break;
+                    case VideoView.STATE_BUFFERING:
+                        fireEvent("onSeekIng");
+                        break;
+                    case VideoView.STATE_BUFFERED:
+                        fireEvent("onSeekComplete");
+                        break;
+                    case VideoView.STATE_PLAYBACK_COMPLETED:
+                        fireEvent("onCompletion");
+                        break;
+                    case VideoView.STATE_ERROR:
+                        fireEvent("onError");
+                        break;
                 }
             }
         });
         if (getContext() instanceof PageActivity) {
             ((PageActivity) getContext()).setOnBackPressed("AppevideoComponent", () -> {
-                if (mVideoView.getCurrentMode() == MODE_WINDOW_FULLSCREEN) {
-                    mVideoView.quitWindowFullscreen();
+                if (mVideoView.isFullScreen()) {
+                    mVideoView.stopFullScreen();
                     return true;
                 }
                 return false;
             });
         }
-
-        return mVideoView;
     }
 
     @WXComponentProp(name = "img")
-    public void setImg(String src) {
-        src = eeuiPage.rewriteUrl(getInstance(), src);
-        if (getHostView() != null) {
-            Glide.with((Activity) getContext()).load(src).into(getHostView().getCoverImageView());
-        }
+    public void setImg(String url) {
+        url = eeuiPage.rewriteUrl(getContext(), url);
+        Glide.with(getContext()).load(url).into(mImageView);
+        mImageView.setVisibility(View.VISIBLE);
     }
-
-    @WXComponentProp(name = "liveMode")
-    public void setLiveMode(boolean live) {
-        getHostView().liveMode = live;
-        if (live) {
-            getHostView().showChangeViews();
-        }
-    }
-
 
     @WXComponentProp(name = "autoPlay")
     public void setAutoPlay(boolean auto) {
-        if (auto) {
-            if (getHostView().getUrl() != null) {
-                this.play();
-            }
+        mAutoPlay = auto;
+        if (mAutoPlay) {
+            mVideoView.start();
         }
     }
 
     @WXComponentProp(name = "pos")
     public void setPosition(int position) {
-        if (getHostView() != null) {
-            getHostView().seekTo(position);
-        }
+        mVideoView.seekTo(position);
     }
 
 
     @WXComponentProp(name = "src")
-    public void setSrc(String src) {
-        this.url = eeuiPage.rewriteUrl(getInstance(), src);
-        getHostView().setUp(this.url, this.title + "");
+    public void setSrc(String url) {
+        mUrl = url;
+        mVideoView.setUrl(url);
+        if (mAutoPlay) {
+            mVideoView.start();
+        }
     }
 
     @WXComponentProp(name = "title")
     public void setTitle(String title) {
-        this.title = title;
-        getHostView().setUp(this.url, this.title + "");
+        mTitleView.setTitle(title);
     }
 
     @JSMethod
     public void seek(int sec) {
-        getHostView().seekTo(sec);
+        mVideoView.seekTo(sec);
     }
-
 
     @JSMethod
     public void play() {
-        getHostView().play();
+        mVideoView.start();
     }
 
     @JSMethod
     public void pause() {
-        getHostView().pause();
+        mVideoView.pause();
     }
 
     @JSMethod
     public void fullScreen() {
-        getHostView().enterWindowFullscreen();
+        mVideoView.startFullScreen();
     }
 
     @JSMethod
     public void quitFullScreen() {
-        getHostView().quitWindowFullscreen();
-
+        mVideoView.stopFullScreen();
     }
 
-    @SuppressLint("HandlerLeak")
-    private Handler handler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == 1) {
-                ((Activity) getContext()).runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        firePlaying(false);
-                    }
-                });
-
-            }
-            super.handleMessage(msg);
+    @JSMethod
+    public void getDuration(JSCallback callback) {
+        if (callback == null) {
+            return;
         }
-    };
-
-    private void firePlaying(boolean compelete) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("current", getHostView().getPosition());
-        m.put("total", getHostView().getDuration());
-
-        if (compelete) {
-            m.put("percent", 1);
-            fireEvent("onPlaying", m);
-            cancelTimer();
+        Long duration = mDurations.get(mUrl);
+        Map<String, Object> data = new HashMap<>();
+        if (duration == null) {
+            data.put("status", "error");
+            data.put("duration", 0);
+            data.put("msg", "视频尚未开始播放无法获取时长");
+            callback.invoke(data);
+        } else if (duration == -1) {
+            data.put("status", "error");
+            data.put("duration", 0);
+            data.put("msg", "视频播放失败无法获取时长");
+            callback.invoke(data);
         } else {
-            if (getHostView().getDuration() != 0)
-                m.put("percent", getHostView().getPosition() / (float) getHostView().getDuration());
-            else
-                m.put("percent", 0);
-            fireEvent("onPlaying", m);
+            data.put("status", "success");
+            data.put("duration", duration);
+            data.put("msg", "");
+            callback.invoke(data);
         }
-    }
-
-    private void cancelTimer() {
-        if (timer != null)
-            timer.cancel();
-    }
-
-    private void statTimer() {
-        if (timer != null) {
-            timer.cancel();
-        }
-        timer = new Timer();
-        TimerTask timerTask = new TimerTask() {
-            @Override
-            public void run() {
-                Message message = new Message();
-                message.what = 1;
-                handler.sendMessage(message);
-            }
-        };
-        timer.schedule(timerTask, 0, 500);
     }
 }

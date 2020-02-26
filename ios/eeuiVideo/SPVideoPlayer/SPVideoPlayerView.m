@@ -2238,6 +2238,19 @@ typedef NS_ENUM(NSInteger, PanDirection){
     }
 }
 
+- (CGFloat)getDuration {
+    if (_playerItem == nil) {
+        return 0;
+    }
+    CGFloat duration = 0;
+    CMTime videoDuration = _playerItem.duration;
+    float videoDurationSeconds = CMTimeGetSeconds(videoDuration);
+    if (videoDurationSeconds > 0) {
+        duration = videoDurationSeconds * 1000;
+    }
+    return duration;
+}
+
 #pragma clang diagnostic pop
 
 @end

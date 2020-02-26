@@ -178,6 +178,8 @@ typedef NS_ENUM(NSInteger,SPVideoPlayerLoadStatus) {
 - (void)quitFullScreen;
 - (void)toggleFullScreen;
 - (void)sp_controlViewRepeatButtonClicked:(UIButton *)sender;
+
+- (CGFloat)getDuration;
 @end
 
 

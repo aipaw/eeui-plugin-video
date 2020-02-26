@@ -23,6 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(strong,nonatomic)  UIImageView *placeholder;
 @property(nonatomic, assign) BOOL autoPlay;
 @property(nonatomic, assign) BOOL liveMode;
+@property(nonatomic, assign) CGFloat totalTime;
 
 @end
 

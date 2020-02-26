@@ -21,6 +21,7 @@ WX_EXPORT_METHOD(@selector(pause))
 WX_EXPORT_METHOD(@selector(seek:))
 WX_EXPORT_METHOD(@selector(fullScreen))
 WX_EXPORT_METHOD(@selector(quitFullScreen))
+WX_EXPORT_METHOD(@selector(getDuration:))
 
 - (instancetype)initWithRef:(NSString *)ref type:(NSString *)type styles:(NSDictionary *)styles attributes:(NSDictionary *)attributes events:(NSArray *)events weexInstance:(WXSDKInstance *)weexInstance
 {
@@ -32,6 +33,7 @@ WX_EXPORT_METHOD(@selector(quitFullScreen))
         _img = attributes[@"img"];
         _autoPlay = [attributes[@"autoPlay"] boolValue];
         _liveMode = [attributes[@"liveMode"] boolValue];
+        _totalTime = -1;
         if (attributes[@"pos"]){
             _position = (int) [attributes[@"pos"] longLongValue] / 1000;
         }else{
@@ -143,6 +145,9 @@ WX_EXPORT_METHOD(@selector(quitFullScreen))
 /** 播放状态发生了改变 */
 - (void)videoPlayerStateChanged:(NSNotification *)notification {
     SPVideoPlayerPlayState state = [notification.userInfo[@"playState"] integerValue];
+    if (_totalTime == -1 && [_video getDuration] > 0) {
+        _totalTime = [_video getDuration];
+    }
     switch (state) {
         case SPVideoPlayerPlayStateReadyToPlay:    // 准备播放
             [self onPrepare];
@@ -203,6 +208,20 @@ WX_EXPORT_METHOD(@selector(quitFullScreen))
 
 -(void)quitFullScreen{
     [_video quitFullScreen];
+}
+
+-(void)getDuration:(WXModuleKeepAliveCallback)callback {
+    if (callback == nil) {
+        return;
+    }
+    if (_totalTime == -1 && [_video getDuration] > 0) {
+        _totalTime = [_video getDuration];
+    }
+    if (_totalTime == -1) {
+        callback(@{@"status":@"error", @"msg": @"视频尚未开始播放无法获取时长", @"duration":@(0)}, NO);
+    } else {
+        callback(@{@"status":@"success", @"msg": @"", @"duration":@(_totalTime)}, NO);
+    }
 }
 
 /**  */
