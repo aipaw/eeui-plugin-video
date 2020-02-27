@@ -2,6 +2,7 @@ package eeui.android.videoView.component;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -184,9 +185,11 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
                 }
             }
         });
+        //
         if (getContext() instanceof PageActivity) {
             ((PageActivity) getContext()).setOnBackPressed("AppevideoComponent", () -> {
                 if (mVideoView.isFullScreen()) {
+                    ((PageActivity) getContext()).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                     mVideoView.stopFullScreen();
                     return true;
                 }
