@@ -1,28 +1,21 @@
-//
-//  AppvideoViewComponent.h
-//  AFNetworking
-//
-//  Created by 郑江荣 on 2019/1/12.
-//
-
 #import "WXComponent.h"
-#import "SPVideoPlayerView.h"
 #import <WeexSDK/WXEventModuleProtocol.h>
 #import <WeexSDK/WXModuleProtocol.h>
-#import "PlayDelegate.h"
+#import <SJVideoPlayer/SJVideoPlayer.h>
+#import <Masonry/Masonry.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface AppvideoViewComponent : WXComponent<WXModuleProtocol,SPVideoPlayerDelegate,PlayDelegate>
+@interface AppvideoViewComponent : WXComponent <WXModuleProtocol>
 
-@property(strong,nonatomic) NSString *src;
-@property(strong,nonatomic) NSString *title;
-@property(strong,nonatomic) NSString *img;
-@property(nonatomic, assign) NSInteger position;
-@property(strong,nonatomic)  SPVideoPlayerView *video;
-@property(strong,nonatomic)  UIImageView *placeholder;
+@property(strong, nonatomic) SJVideoPlayer *player;
+
+@property(strong, nonatomic) NSString *src;
+@property(strong, nonatomic) NSString *title;
+@property(strong, nonatomic) NSString *img;
+@property(strong, nonatomic) NSString *status;
+@property(nonatomic, assign) NSInteger pos;
 @property(nonatomic, assign) BOOL autoPlay;
-@property(nonatomic, assign) BOOL liveMode;
 @property(nonatomic, assign) CGFloat totalTime;
 
 @end

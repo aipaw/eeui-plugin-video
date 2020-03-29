@@ -1,8 +1,10 @@
 package eeui.android.videoView.component;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -10,6 +12,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
+import com.alibaba.fastjson.JSONObject;
 import com.dueeeke.videocontroller.StandardVideoController;
 import com.dueeeke.videocontroller.component.CompleteView;
 import com.dueeeke.videocontroller.component.ErrorView;
@@ -26,11 +29,15 @@ import com.taobao.weex.ui.component.WXVContainer;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import app.eeui.framework.activity.PageActivity;
 import app.eeui.framework.extend.integration.glide.Glide;
 import app.eeui.framework.extend.module.eeuiConstants;
+import app.eeui.framework.extend.module.eeuiJson;
 import app.eeui.framework.extend.module.eeuiPage;
+import app.eeui.framework.extend.module.eeuiParse;
 import eeui.android.videoView.R;
 import eeui.android.videoView.component.extend.TitleView;
 
@@ -51,6 +58,10 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
 
     private boolean isPause;    //页面是否暂停
     private boolean isPlaying;  //是否播放中（用于页面恢复后是否播放）
+
+    private long currentPosition = 0;
+    private Timer videoTimer;
+    private TimerTask videoTask;
 
     public AppvideoViewComponent(WXSDKInstance instance, WXVContainer parent, BasicComponentData basicComponentData) {
         super(instance, parent, basicComponentData);
@@ -101,6 +112,50 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
         mVideoView.release();
     }
 
+    @Override
+    protected boolean setProperty(String key, Object param) {
+        return initProperty(key, param) || super.setProperty(key, param);
+    }
+
+    private boolean initProperty(String key, Object val) {
+        switch (key) {
+            case "eeui":
+                JSONObject json = eeuiJson.parseObject(eeuiParse.parseStr(val, ""));
+                if (json.size() > 0) {
+                    for (Map.Entry<String, Object> entry : json.entrySet()) {
+                        initProperty(entry.getKey(), entry.getValue());
+                    }
+                }
+                return true;
+
+            case "src":
+            case "url":
+                setSrc(eeuiParse.parseStr(val, ""));
+                return true;
+
+            case "img":
+                setImg(eeuiParse.parseStr(val, ""));
+                return true;
+
+            case "autoPlay":
+                setAutoPlay(eeuiParse.parseBool(val, true));
+                return true;
+
+            case "pos":
+            case "seek":
+                setPos(eeuiParse.parseInt(val));
+                return true;
+
+            case "title":
+                setTitle(eeuiParse.parseStr(val, ""));
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    @SuppressLint("SourceLockedOrientationActivity")
     private void initPagerView() {
         mVideoView = mView.findViewById(R.id.v_videoview);
         mController = new StandardVideoController(getContext());            //播放控制器
@@ -148,7 +203,8 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
                         break;
                     case VideoView.STATE_ERROR:
                     case VideoView.STATE_PLAYBACK_COMPLETED:
-                        mDurations.put(mUrl, (long) -1);
+                        Long duration = mDurations.get(mUrl);
+                        mDurations.put(mUrl, duration == null ? (long) -1 : duration);
                         break;
                 }
                 switch (playState) {
@@ -166,6 +222,9 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
                             mVideoView.pause();
                         }
                         fireEvent("onStart");
+                        if (getEvents().contains("onPlaying")) {
+                            fireEvent("onPlaying", eeuiJson.parseObject("{current:0,total:" + mVideoView.getDuration() + ",percent:0}"));
+                        }
                         break;
                     case VideoView.STATE_PAUSED:
                         fireEvent("onPause");
@@ -186,8 +245,37 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
             }
         });
         //
+        if (getEvents().contains("onPlaying")) {
+            if (videoTimer != null) {
+                videoTimer.cancel();
+                videoTimer = null;
+                videoTask = null;
+            }
+            videoTimer = new Timer();
+            videoTask = new TimerTask() {
+                @Override
+                public void run() {
+                    Long duration = mDurations.get(mUrl);
+                    if (duration == null) {
+                        return;
+                    }
+                    if (currentPosition != mVideoView.getCurrentPosition()) {
+                        currentPosition = mVideoView.getCurrentPosition();
+                        mView.post(()-> {
+                            if (currentPosition == 0 && mVideoView.getCurrentPlayState() == VideoView.STATE_PLAYBACK_COMPLETED) {
+                                fireEvent("onPlaying", eeuiJson.parseObject("{current:" + duration + ",total:" + duration + ",percent:1}"));
+                            } else {
+                                fireEvent("onPlaying", eeuiJson.parseObject("{current:" + currentPosition + ",total:" + duration + ",percent:" + (currentPosition /(double) duration) + "}"));
+                            }
+                        });
+                    }
+                }
+            };
+            videoTimer.schedule(videoTask, 1000, 1000);
+        }
+        //
         if (getContext() instanceof PageActivity) {
-            ((PageActivity) getContext()).setOnBackPressed("AppevideoComponent", () -> {
+            ((PageActivity) getContext()).setOnBackPressed("__AppevideoComponent", () -> {
                 if (mVideoView.isFullScreen()) {
                     ((PageActivity) getContext()).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                     mVideoView.stopFullScreen();
@@ -198,14 +286,24 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
         }
     }
 
-    @WXComponentProp(name = "img")
+
+    @JSMethod
+    public void setSrc(String url) {
+        mUrl = eeuiPage.rewriteUrl(getContext(), url);
+        mVideoView.setUrl(mUrl);
+        if (mAutoPlay) {
+            mVideoView.start();
+        }
+    }
+
+    @JSMethod
     public void setImg(String url) {
         url = eeuiPage.rewriteUrl(getContext(), url);
         Glide.with(getContext()).load(url).into(mImageView);
         mImageView.setVisibility(View.VISIBLE);
     }
 
-    @WXComponentProp(name = "autoPlay")
+    @JSMethod
     public void setAutoPlay(boolean auto) {
         mAutoPlay = auto;
         if (mAutoPlay) {
@@ -213,22 +311,12 @@ public class AppvideoViewComponent extends WXVContainer<ViewGroup> {
         }
     }
 
-    @WXComponentProp(name = "pos")
-    public void setPosition(int position) {
-        mVideoView.seekTo(position);
+    @JSMethod
+    public void setPos(int pos) {
+        mVideoView.seekTo(pos);
     }
 
-
-    @WXComponentProp(name = "src")
-    public void setSrc(String url) {
-        mUrl = url;
-        mVideoView.setUrl(url);
-        if (mAutoPlay) {
-            mVideoView.start();
-        }
-    }
-
-    @WXComponentProp(name = "title")
+    @JSMethod
     public void setTitle(String title) {
         mTitleView.setTitle(title);
     }

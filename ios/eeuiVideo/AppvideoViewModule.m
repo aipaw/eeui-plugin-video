@@ -29,7 +29,7 @@ WX_EXPORT_METHOD(@selector(getDuration:call:))
             NSDictionary *opts = [NSDictionary dictionaryWithObject:@(NO) forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
             AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:[NSURL URLWithString:url] options:opts]; // 初始化视频媒体文件
             CMTime videoDuration = urlAsset.duration;
-            float videoDurationSeconds = CMTimeGetSeconds(videoDuration);
+            float videoDurationSeconds = (float) CMTimeGetSeconds(videoDuration);
             if (videoDurationSeconds > 0) {
                 duration = videoDurationSeconds * 1000;
             }
